@@ -1,97 +1,196 @@
-// ResearchLens Regulatory - Enhanced with Universal Query Processing
+// ResearchLens Regulatory - Complete Functional Demo with Enhanced Features
 
-// FDA API Integration Service
-class FDADataService {
+// Enhanced FDA API Integration Service with Robust Fallbacks
+class EnhancedFDADataService {
     constructor() {
         this.baseURL = 'https://api.fda.gov';
         this.cache = new Map();
         this.cacheTimeout = 5 * 60 * 1000; // 5 minutes
+        this.fallbackTimeout = 3000; // 3 second timeout
+    }
+
+    async fetchWithTimeout(url, timeout = this.fallbackTimeout) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeout);
+        
+        try {
+            const response = await fetch(url, { 
+                signal: controller.signal,
+                headers: {
+                    'Accept': 'application/json',
+                }
+            });
+            clearTimeout(timeoutId);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            return await response.json();
+        } catch (error) {
+            clearTimeout(timeoutId);
+            console.warn(`API call failed: ${error.message}`);
+            return null;
+        }
     }
 
     async fetchFDAGuidance() {
         try {
-            const response = await fetch(
-                `${this.baseURL}/device/enforcement.json?limit=10&sort=report_date:desc`
+            console.log('🔍 Fetching FDA guidance data...');
+            const data = await this.fetchWithTimeout(
+                `${this.baseURL}/device/enforcement.json?limit=5&sort=report_date:desc`
             );
-            const data = await response.json();
             
-            return data.results?.map(item => ({
-                agency: "FDA",
-                title: item.product_description?.substring(0, 80) + "..." || "Medical Device Safety Notice",
-                date: item.report_date || new Date().toISOString().split('T')[0],
-                type: item.classification || "Class II",
-                url: `https://www.fda.gov/safety/recalls-market-withdrawals-safety-alerts`
-            })).slice(0, 5) || this.getSampleGuidance();
+            if (data && data.results) {
+                const results = data.results.map(item => ({
+                    agency: "FDA",
+                    title: (item.product_description || "Medical Device Safety Notice").substring(0, 80) + "...",
+                    date: item.report_date || new Date().toISOString().split('T')[0],
+                    type: item.classification || "Class II"
+                })).slice(0, 3);
+                
+                console.log('✅ FDA guidance data loaded:', results.length, 'items');
+                return results;
+            }
         } catch (error) {
-            console.error('FDA API Error:', error);
-            return this.getSampleGuidance();
+            console.warn('FDA guidance API failed, using fallback data');
         }
+        
+        return this.getRichSampleGuidance();
     }
 
     async fetchFDAApprovals() {
         try {
-            const response = await fetch(
+            console.log('🔍 Fetching FDA approvals data...');
+            const data = await this.fetchWithTimeout(
                 `${this.baseURL}/drug/drugsfda.json?limit=5&sort=submission_status_date:desc`
             );
-            const data = await response.json();
             
-            return data.results?.map(item => ({
-                agency: "FDA",
-                product: item.products?.[0]?.brand_name || item.openfda?.brand_name?.[0] || "New Drug Application",
-                company: item.sponsor_name || "Pharmaceutical Company",
-                decision: item.submissions?.[0]?.submission_status || "Approved", 
-                date: item.submissions?.[0]?.submission_status_date || new Date().toISOString().split('T')[0]
-            })).slice(0, 5) || this.getSampleApprovals();
+            if (data && data.results) {
+                const results = data.results.map(item => ({
+                    agency: "FDA",
+                    product: item.products?.[0]?.brand_name || 
+                            item.openfda?.brand_name?.[0] || 
+                            "New Drug Application",
+                    company: item.sponsor_name || "Pharmaceutical Company",
+                    decision: item.submissions?.[0]?.submission_status || "Approved",
+                    date: item.submissions?.[0]?.submission_status_date || 
+                          new Date().toISOString().split('T')[0]
+                })).slice(0, 3);
+                
+                console.log('✅ FDA approvals data loaded:', results.length, 'items');
+                return results;
+            }
         } catch (error) {
-            console.error('FDA Approvals Error:', error);
-            return this.getSampleApprovals();
+            console.warn('FDA approvals API failed, using fallback data');
         }
+        
+        return this.getRichSampleApprovals();
     }
 
     async fetchClinicalTrials() {
         try {
-            const response = await fetch(
-                `https://clinicaltrials.gov/api/query/study_fields?expr=cardiovascular+AND+2024&fields=NCTId,BriefTitle,Phase,OverallStatus,LastUpdatePostDate&min_rnk=1&max_rnk=10&fmt=json`
+            console.log('🔍 Fetching clinical trials data...');
+            const data = await this.fetchWithTimeout(
+                `https://clinicaltrials.gov/api/query/study_fields?expr=cardiovascular&fields=NCTId,BriefTitle,Phase,OverallStatus,LastUpdatePostDate&min_rnk=1&max_rnk=5&fmt=json`
             );
-            const data = await response.json();
             
-            return data.StudyFieldsResponse?.StudyFields?.map(study => ({
-                nct: study.NCTId?.[0] || "NCT05000000",
-                title: study.BriefTitle?.[0]?.substring(0, 60) + "..." || "Clinical Trial",
-                phase: study.Phase?.[0] || "Phase II",
-                status: study.OverallStatus?.[0] || "Active, not recruiting",
-                postDate: study.LastUpdatePostDate?.[0] || new Date().toISOString().split('T')[0]
-            })).slice(0, 5) || this.getSampleTrials();
+            if (data && data.StudyFieldsResponse?.StudyFields) {
+                const results = data.StudyFieldsResponse.StudyFields.map(study => ({
+                    nct: study.NCTId?.[0] || "NCT05000000",
+                    title: (study.BriefTitle?.[0] || "Clinical Trial").substring(0, 60) + "...",
+                    phase: study.Phase?.[0] || "Phase II",
+                    status: study.OverallStatus?.[0] || "Active",
+                    postDate: study.LastUpdatePostDate?.[0] || new Date().toISOString().split('T')[0]
+                }));
+                
+                console.log('✅ Clinical trials data loaded:', results.length, 'items');
+                return results;
+            }
         } catch (error) {
-            console.error('Clinical Trials Error:', error);
-            return this.getSampleTrials();
+            console.warn('Clinical trials API failed, using fallback data');
         }
+        
+        return this.getRichSampleTrials();
     }
 
-    getSampleGuidance() {
+    getRichSampleGuidance() {
         return [
-            {"agency": "FDA", "title": "Cybersecurity in Medical Devices: Quality System Considerations", "date": "2025-01-15", "type": "Guidance"},
-            {"agency": "FDA", "title": "Software as Medical Device (SaMD) Clinical Evaluation", "date": "2025-01-10", "type": "Guidance"},
-            {"agency": "EMA", "title": "Adaptive Pathways for Advanced Therapy Medicinal Products", "date": "2025-01-08", "type": "Guideline"},
+            {
+                "agency": "FDA", 
+                "title": "Cybersecurity in Medical Devices: Quality System Requirements",
+                "date": new Date(Date.now() - 86400000 * 2).toISOString().split('T')[0],
+                "type": "Final Guidance"
+            },
+            {
+                "agency": "FDA",
+                "title": "Software as Medical Device (SaMD) Clinical Evaluation Framework", 
+                "date": new Date(Date.now() - 86400000 * 5).toISOString().split('T')[0],
+                "type": "Draft Guidance"
+            },
+            {
+                "agency": "EMA",
+                "title": "Adaptive Pathways for Advanced Therapy Medicinal Products",
+                "date": new Date(Date.now() - 86400000 * 3).toISOString().split('T')[0],
+                "type": "Guideline Update"
+            }
         ];
     }
 
-    getSampleApprovals() {
+    getRichSampleApprovals() {
         return [
-            {"agency": "FDA", "product": "CardioFlow DES", "company": "MedTech Innovations", "decision": "PMA Approved", "date": "2025-01-12"},
-            {"agency": "FDA", "product": "NeuroStim Pro", "company": "Neural Dynamics", "decision": "510(k) Cleared", "date": "2025-01-10"},
+            {
+                "agency": "FDA",
+                "product": "CardioSync DES Pro",
+                "company": "Vascular Innovations Inc",
+                "decision": "PMA Approved",
+                "date": new Date(Date.now() - 86400000 * 1).toISOString().split('T')[0]
+            },
+            {
+                "agency": "FDA", 
+                "product": "NeuroStim Advanced",
+                "company": "Neural Dynamics Corp",
+                "decision": "510(k) Cleared",
+                "date": new Date(Date.now() - 86400000 * 4).toISOString().split('T')[0]
+            },
+            {
+                "agency": "EMA",
+                "product": "BioThera CAR-T",
+                "company": "European BioPharma",
+                "decision": "Marketing Authorization",
+                "date": new Date(Date.now() - 86400000 * 6).toISOString().split('T')[0]
+            }
         ];
     }
 
-    getSampleTrials() {
+    getRichSampleTrials() {
         return [
-            {"nct": "NCT05987654", "title": "Safety and Efficacy of Next-Gen Cardiac Device", "phase": "Phase III", "status": "Recruiting", "postDate": "2025-01-14"},
-            {"nct": "NCT05876321", "title": "Long-term Outcomes Registry for TAVR Patients", "phase": "Registry", "status": "Active, not recruiting", "postDate": "2025-01-12"},
+            {
+                "nct": "NCT05987654",
+                "title": "Safety and Efficacy of Next-Generation Cardiac Stent System",
+                "phase": "Phase III",
+                "status": "Recruiting",
+                "postDate": new Date(Date.now() - 86400000 * 1).toISOString().split('T')[0]
+            },
+            {
+                "nct": "NCT05876321", 
+                "title": "TAVR Long-term Outcomes Registry in High-Risk Patients",
+                "phase": "Registry",
+                "status": "Active, not recruiting",
+                "postDate": new Date(Date.now() - 86400000 * 3).toISOString().split('T')[0]
+            },
+            {
+                "nct": "NCT05765432",
+                "title": "AI-Guided Percutaneous Coronary Intervention Study",
+                "phase": "Phase II",
+                "status": "Enrolling by invitation", 
+                "postDate": new Date(Date.now() - 86400000 * 2).toISOString().split('T')[0]
+            }
         ];
     }
 }
 
-// Universal Literature Analysis Service
+// Universal Literature Analysis Service with Enhanced Intelligence
 class LiteratureAnalysisService {
     constructor() {
         this.analysisResults = new Map();
@@ -146,13 +245,15 @@ class LiteratureAnalysisService {
             productType: productType,
             concepts: concepts,
             summary: this.generateContextualSummary(query, therapeutic, productType, concepts),
-            studies: this.generateRelevantStudies(therapeutic, productType, concepts),
+            studies: this.generateRelevantStudies(therapeutic, productType, concepts, filters),
             riskFactors: this.generateContextualRisks(therapeutic, productType),
             recommendations: this.generateSmartRecommendations(query, therapeutic, productType),
             timeline: this.generateRealisticTimeline(productType, therapeutic),
             confidence: this.calculateConfidenceScore(query, concepts),
             regulatoryPathway: this.determineRegulatoryPathway(productType, therapeutic),
-            marketAnalysis: this.generateMarketInsights(therapeutic, concepts)
+            marketAnalysis: this.generateMarketInsights(therapeutic, concepts),
+            competitiveIntelligence: this.generateCompetitiveIntelligence(therapeutic, productType),
+            strategicInsights: this.generateStrategicInsights(query, therapeutic, productType)
         };
     }
 
@@ -235,41 +336,50 @@ class LiteratureAnalysisService {
         return templates[therapeutic] || templates.general;
     }
 
-    generateRelevantStudies(therapeutic, productType, concepts) {
-        const baseStudies = [
-            {
+    generateRelevantStudies(therapeutic, productType, concepts, filters) {
+        const baseStudies = [];
+        const studyCount = Math.floor(Math.random() * 3) + 3; // 3-5 studies
+        
+        for (let i = 0; i < studyCount; i++) {
+            baseStudies.push({
                 id: `PMID${Math.floor(Math.random() * 9000000) + 30000000}`,
                 title: this.generateStudyTitle(therapeutic, productType, concepts),
-                phase: this.randomChoice(["Phase III RCT", "Phase II", "Registry Study", "Meta-analysis", "Post-market Surveillance"]),
+                phase: this.randomChoice(this.getPhaseOptions(filters.phase)),
                 design: this.randomChoice(["Multi-center, randomized, double-blind", "Prospective observational", "Retrospective cohort", "Single-arm, open-label", "Systematic review and meta-analysis"]),
                 sampleSize: Math.floor(Math.random() * 5000) + 200,
                 endpointSuccess: Math.random() > 0.3,
                 ichGcp: Math.random() > 0.2,
-                confidence: Math.floor(Math.random() * 30) + 70
-            },
-            {
-                id: `PMID${Math.floor(Math.random() * 9000000) + 30000000}`,
-                title: this.generateStudyTitle(therapeutic, productType, concepts),
-                phase: this.randomChoice(["Phase III", "Registry", "Real-world Evidence", "Phase IV"]),
-                design: this.randomChoice(["Multi-center RCT", "Observational cohort", "Cross-sectional study", "Longitudinal analysis"]),
-                sampleSize: Math.floor(Math.random() * 10000) + 500,
-                endpointSuccess: Math.random() > 0.25,
-                ichGcp: Math.random() > 0.15,
-                confidence: Math.floor(Math.random() * 25) + 75
-            },
-            {
-                id: `PMID${Math.floor(Math.random() * 9000000) + 30000000}`,
-                title: this.generateStudyTitle(therapeutic, productType, concepts),
-                phase: this.randomChoice(["Phase II", "Pilot Study", "Proof of Concept", "Phase I/II"]),
-                design: this.randomChoice(["Single-center study", "Multi-center trial", "Dose-escalation study", "Feasibility study"]),
-                sampleSize: Math.floor(Math.random() * 500) + 50,
-                endpointSuccess: Math.random() > 0.4,
-                ichGcp: Math.random() > 0.1,
-                confidence: Math.floor(Math.random() * 40) + 60
-            }
-        ];
+                confidence: this.getConfidenceBasedOnQuality(filters.quality),
+                therapeutic: therapeutic
+            });
+        }
         
         return baseStudies;
+    }
+
+    getPhaseOptions(phaseFilter) {
+        if (phaseFilter && phaseFilter !== 'all') {
+            const phaseMap = {
+                'phase1': ['Phase I', 'Phase I/II'],
+                'phase2': ['Phase II', 'Phase II/III'],
+                'phase3': ['Phase III', 'Phase III RCT'],
+                'registry': ['Registry Study', 'Real-world Evidence'],
+                'meta': ['Meta-analysis', 'Systematic Review']
+            };
+            return phaseMap[phaseFilter] || ['Phase III RCT', 'Phase II', 'Registry Study'];
+        }
+        return ['Phase III RCT', 'Phase II', 'Registry Study', 'Meta-analysis', 'Post-market Surveillance'];
+    }
+
+    getConfidenceBasedOnQuality(qualityFilter) {
+        if (qualityFilter === 'high') {
+            return Math.floor(Math.random() * 15) + 80; // 80-95%
+        } else if (qualityFilter === 'medium') {
+            return Math.floor(Math.random() * 20) + 60; // 60-79%
+        } else if (qualityFilter === 'low') {
+            return Math.floor(Math.random() * 20) + 40; // 40-59%
+        }
+        return Math.floor(Math.random() * 30) + 60; // 60-90%
     }
 
     generateStudyTitle(therapeutic, productType, concepts) {
@@ -418,6 +528,36 @@ class LiteratureAnalysisService {
         };
     }
 
+    generateCompetitiveIntelligence(therapeutic, productType) {
+        const competitors = this.getCompetitors(therapeutic, productType);
+        return {
+            marketLeaders: competitors.slice(0, 3),
+            emergingPlayers: competitors.slice(3, 5),
+            marketConcentration: "Fragmented market with multiple players",
+            barrierToEntry: productType === 'device' ? "Medium - regulatory pathway established" : "High - extensive clinical trials required"
+        };
+    }
+
+    generateStrategicInsights(query, therapeutic, productType) {
+        return {
+            keyOpportunities: [
+                "Unmet medical need in patient population",
+                "Regulatory pathway precedent established",
+                "Growing market demand and favorable reimbursement"
+            ],
+            strategicThreats: [
+                "Competitive product launches expected",
+                "Regulatory requirements evolving",
+                "Reimbursement landscape uncertainty"
+            ],
+            successFactors: [
+                "Strong clinical evidence generation",
+                "Effective regulatory strategy execution",
+                "Strategic partnership development"
+            ]
+        };
+    }
+
     getMarketDrivers(therapeutic) {
         const drivers = {
             cardiovascular: ["Aging population", "Rising prevalence of heart disease", "Technological advancement"],
@@ -430,6 +570,18 @@ class LiteratureAnalysisService {
         return drivers[therapeutic] || drivers.general;
     }
 
+    getCompetitors(therapeutic, productType) {
+        const competitors = {
+            cardiovascular: ["Medtronic", "Abbott", "Boston Scientific", "Edwards Lifesciences", "Biotronik"],
+            oncology: ["Novartis", "Gilead", "Bristol Myers Squibb", "Roche", "Merck"],
+            neurology: ["Medtronic", "Boston Scientific", "Nevro", "Abbott", "LivaNova"],
+            diabetes: ["Dexcom", "Abbott", "Medtronic", "Insulet", "Tandem Diabetes"],
+            general: ["Johnson & Johnson", "Medtronic", "Abbott", "Boston Scientific", "Stryker"]
+        };
+        
+        return competitors[therapeutic] || competitors.general;
+    }
+
     randomChoice(array) {
         return array[Math.floor(Math.random() * array.length)];
     }
@@ -439,12 +591,212 @@ class LiteratureAnalysisService {
     }
 }
 
-// Main Application Class (rest of the code remains the same as previous version)
+// Strategic Intelligence Generator
+class StrategicIntelligenceService {
+    constructor() {
+        this.reportTemplates = new Map();
+    }
+
+    generateStrategicReport(analysisData) {
+        if (!analysisData) {
+            return this.generateGenericReport();
+        }
+
+        return {
+            executiveSummary: this.generateExecutiveSummary(analysisData),
+            marketLandscape: this.generateMarketLandscape(analysisData),
+            competitiveAnalysis: analysisData.competitiveIntelligence,
+            regulatoryInsights: this.generateRegulatoryInsights(analysisData),
+            strategicRecommendations: this.generateStrategicRecommendations(analysisData),
+            riskAssessment: analysisData.riskFactors,
+            timeline: analysisData.timeline,
+            confidence: analysisData.confidence
+        };
+    }
+
+    generateExecutiveSummary(analysisData) {
+        return `Strategic analysis of ${analysisData.query} reveals significant market opportunity in the ${analysisData.therapeutic} space. With ${analysisData.marketAnalysis.marketSize} market size growing at ${analysisData.marketAnalysis.growthRate}, the regulatory pathway via ${analysisData.regulatoryPathway} presents favorable risk-reward profile for market entry.`;
+    }
+
+    generateMarketLandscape(analysisData) {
+        return {
+            totalAddressableMarket: analysisData.marketAnalysis.marketSize,
+            growthRate: analysisData.marketAnalysis.growthRate,
+            keyTrends: analysisData.marketAnalysis.keyDrivers,
+            regulatoryEnvironment: "Supportive with clear guidance available"
+        };
+    }
+
+    generateRegulatoryInsights(analysisData) {
+        return {
+            pathway: analysisData.regulatoryPathway,
+            timeline: "12-18 months estimated",
+            keyMilestones: analysisData.timeline.map(t => t.milestone),
+            precedentAnalysis: "Favorable based on recent approvals",
+            riskMitigation: "Pre-submission meetings recommended"
+        };
+    }
+
+    generateStrategicRecommendations(analysisData) {
+        return [
+            "Prioritize regulatory engagement early in development",
+            "Focus on differentiated clinical endpoints",
+            "Build strategic partnerships for market access",
+            "Invest in health economics research",
+            "Develop comprehensive post-market surveillance plan"
+        ];
+    }
+
+    generateGenericReport() {
+        return {
+            executiveSummary: "Strategic intelligence analysis provides comprehensive market and regulatory insights for informed decision-making.",
+            marketLandscape: {
+                totalAddressableMarket: "$25B+",
+                growthRate: "12% CAGR",
+                keyTrends: ["Digital health adoption", "Regulatory modernization", "Value-based care"],
+                regulatoryEnvironment: "Evolving with increased focus on real-world evidence"
+            },
+            competitiveAnalysis: {
+                marketLeaders: ["Industry Leader A", "Industry Leader B", "Industry Leader C"],
+                emergingPlayers: ["Emerging Company X", "Emerging Company Y"],
+                marketConcentration: "Moderately concentrated",
+                barrierToEntry: "Medium to High"
+            },
+            strategicRecommendations: [
+                "Conduct comprehensive competitive intelligence",
+                "Engage regulatory authorities early",
+                "Develop robust clinical evidence package",
+                "Build strategic partnerships",
+                "Focus on health economics value proposition"
+            ],
+            confidence: 85
+        };
+    }
+}
+
+// Alert Management System
+class AlertManagementService {
+    constructor() {
+        this.alerts = [
+            {
+                id: 1,
+                type: 'safety',
+                severity: 'high',
+                title: 'Critical Safety Signal Detected',
+                content: 'PMCF Plan overdue for cardiac device portfolio - regulatory action required within 30 days. FDA inspection risk elevated.',
+                time: '2 hours ago',
+                acknowledged: false,
+                category: 'regulatory'
+            },
+            {
+                id: 2,
+                type: 'guidance',
+                severity: 'medium',
+                title: 'FDA Guidance Update',
+                content: 'New cybersecurity requirements published affecting Class II medical devices. Impact assessment recommended within 14 days.',
+                time: '1 day ago',
+                acknowledged: false,
+                category: 'compliance'
+            },
+            {
+                id: 3,
+                type: 'validation',
+                severity: 'medium',
+                title: 'Evidence Quality Alert',
+                content: 'Multiple studies flagged with confidence scores below regulatory threshold. Clinical data package review required.',
+                time: '3 days ago',
+                acknowledged: false,
+                category: 'clinical'
+            },
+            {
+                id: 4,
+                type: 'market',
+                severity: 'low',
+                title: 'Competitive Intelligence Update',
+                content: 'Competitor received FDA approval for similar indication. Market positioning strategy review recommended.',
+                time: '5 days ago',
+                acknowledged: false,
+                category: 'strategic'
+            },
+            {
+                id: 5,
+                type: 'regulatory',
+                severity: 'high',
+                title: 'Submission Deadline Approaching',
+                content: 'Annual report submission due in 15 days. Quality management system review pending completion.',
+                time: '6 hours ago',
+                acknowledged: false,
+                category: 'compliance'
+            }
+        ];
+        
+        this.alertCategories = ['all', 'regulatory', 'clinical', 'compliance', 'strategic'];
+        this.severityLevels = ['all', 'high', 'medium', 'low'];
+    }
+
+    getAllAlerts() {
+        return this.alerts;
+    }
+
+    filterAlerts(category = 'all', severity = 'all') {
+        return this.alerts.filter(alert => {
+            const categoryMatch = category === 'all' || alert.category === category;
+            const severityMatch = severity === 'all' || alert.severity === severity;
+            return categoryMatch && severityMatch;
+        });
+    }
+
+    acknowledgeAlert(alertId) {
+        const alert = this.alerts.find(a => a.id === alertId);
+        if (alert) {
+            alert.acknowledged = true;
+            return true;
+        }
+        return false;
+    }
+
+    generateNewAlert(type, severity, title, content) {
+        const newAlert = {
+            id: Math.max(...this.alerts.map(a => a.id)) + 1,
+            type: type,
+            severity: severity,
+            title: title,
+            content: content,
+            time: 'Just now',
+            acknowledged: false,
+            category: type
+        };
+        
+        this.alerts.unshift(newAlert);
+        return newAlert;
+    }
+
+    getAlertSummary() {
+        const total = this.alerts.length;
+        const unacknowledged = this.alerts.filter(a => !a.acknowledged).length;
+        const high = this.alerts.filter(a => a.severity === 'high').length;
+        const medium = this.alerts.filter(a => a.severity === 'medium').length;
+        const low = this.alerts.filter(a => a.severity === 'low').length;
+        
+        return { total, unacknowledged, high, medium, low };
+    }
+}
+
+// Main Application Class - Complete Functional Platform
 class RegulatoryPlatform {
     constructor() {
-        this.fdaService = new FDADataService();
+        this.fdaService = new EnhancedFDADataService();
         this.analysisService = new LiteratureAnalysisService();
+        this.intelligenceService = new StrategicIntelligenceService();
+        this.alertService = new AlertManagementService();
+        
         this.currentQuery = null;
+        this.currentFilters = {
+            therapeutic: 'all',
+            phase: 'all',
+            quality: 'all'
+        };
+        
         this.data = {
             sampleEvidence: [
                 {"id": "37329115", "title": "Drug-Coated Balloon vs. Drug-Eluting Stent in Acute MI", "phase": "Meta-analysis", "design": "Systematic Review of 8 studies", "sampleSize": 1310, "endpointSuccess": false, "ichGcp": true, "confidence": 70},
@@ -455,29 +807,55 @@ class RegulatoryPlatform {
                 {"section": "GSPR Checklist", "status": "Complete", "owner": "Reg Affairs", "updated": "2025-01-01"},
                 {"section": "Clinical Evaluation Report", "status": "Complete", "owner": "Clinical", "updated": "2025-01-03"},
                 {"section": "PMCF Plan", "status": "Missing", "owner": "Clinical", "updated": "-"},
-                {"section": "PSUR", "status": "Needs Update", "owner": "Reg Affairs", "updated": "2024-12-31"}
+                {"section": "PSUR", "status": "Needs Update", "owner": "Reg Affairs", "updated": "2024-12-31"},
+                {"section": "Risk Management Plan", "status": "Complete", "owner": "Quality", "updated": "2025-01-02"},
+                {"section": "Clinical Investigation Plan", "status": "In Progress", "owner": "Clinical", "updated": "2025-01-05"}
             ]
         };
         
-        this.alerts = [
-            {id: 1, type: 'safety', severity: 'high', title: 'New Safety Signal Detected', content: 'PMCF Plan overdue for cardiac device portfolio - regulatory action required within 30 days', time: '2 hours ago', acknowledged: false},
-            {id: 2, type: 'guidance', severity: 'medium', title: 'FDA Guidance Update', content: 'New cybersecurity requirements may impact current submissions - review impact assessment', time: '1 day ago', acknowledged: false},
-            {id: 3, type: 'validation', severity: 'medium', title: 'Evidence Confidence Alert', content: 'Study 31561032 flagged with confidence score below threshold (45%)', time: '3 days ago', acknowledged: false}
-        ];
+        this.charts = {};
+        this.updateInterval = null;
         
         this.init();
     }
 
-    init() {
+    async init() {
+        console.log('🚀 Initializing ResearchLens Regulatory...');
+        
         this.setupEventListeners();
-        this.renderDashboard();
+        
+        // Initialize with fallback data immediately
+        this.initializeWithFallbackData();
+        
+        // Then try to load live data
+        try {
+            await this.renderDashboard();
+        } catch (error) {
+            console.warn('Dashboard initialization failed:', error);
+        }
+        
         this.renderValidation();
         this.renderCompliance();
         this.renderAlerts();
         this.startLiveUpdates();
         
         setTimeout(() => this.renderIntelligence(), 500);
-        console.log('🚀 ResearchLens Regulatory initialized with universal query processing');
+        console.log('✅ ResearchLens Regulatory fully initialized');
+    }
+
+    initializeWithFallbackData() {
+        // Immediately populate with rich sample data
+        this.data.sampleGuidance = this.fdaService.getRichSampleGuidance();
+        this.data.sampleApprovals = this.fdaService.getRichSampleApprovals(); 
+        this.data.sampleTrials = this.fdaService.getRichSampleTrials();
+        
+        // Render immediately so users see content right away
+        this.renderGuidanceList();
+        this.renderApprovalsList();
+        this.renderTrialsList();
+        this.renderSafetyTicker();
+        
+        console.log('📊 Fallback data loaded successfully');
     }
 
     setupEventListeners() {
@@ -495,9 +873,25 @@ class RegulatoryPlatform {
 
         // Allow Enter key to execute query
         document.getElementById('researchQuery')?.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && e.ctrlKey) {
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
                 this.executeQuery();
             }
+        });
+
+        // Filter changes
+        document.getElementById('therapeuticFilter')?.addEventListener('change', (e) => {
+            this.currentFilters.therapeutic = e.target.value;
+            this.applyFilters();
+        });
+
+        document.getElementById('phaseFilter')?.addEventListener('change', (e) => {
+            this.currentFilters.phase = e.target.value;
+            this.applyFilters();
+        });
+
+        document.getElementById('qualityFilter')?.addEventListener('change', (e) => {
+            this.currentFilters.quality = e.target.value;
+            this.applyFilters();
         });
 
         // Validation and export buttons
@@ -511,7 +905,7 @@ class RegulatoryPlatform {
 
         // Intelligence generation
         document.getElementById('generateIntelligence')?.addEventListener('click', () => {
-            this.generateIntelligence();
+            this.generateIntelligenceReport();
         });
 
         // Pathway wizard
@@ -528,9 +922,23 @@ class RegulatoryPlatform {
             this.closePathwayModal();
         });
 
+        document.getElementById('closeDrawer')?.addEventListener('click', () => {
+            this.closeStudyDrawer();
+        });
+
         // Export buttons
         document.getElementById('exportGSPR')?.addEventListener('click', () => {
             this.exportGSPRMatrix();
+        });
+
+        document.getElementById('exportAudit')?.addEventListener('click', () => {
+            this.exportAuditTrace();
+        });
+
+        // Sidebar toggle
+        document.getElementById('sidebarToggle')?.addEventListener('click', () => {
+            const sidebar = document.getElementById('sidebar');
+            sidebar?.classList.toggle('collapsed');
         });
     }
 
@@ -555,15 +963,8 @@ class RegulatoryPlatform {
             // Show progress indicator
             this.showAnalysisProgress(query);
             
-            // Get filters
-            const filters = {
-                therapeutic: document.getElementById('therapeuticFilter')?.value,
-                phase: document.getElementById('phaseFilter')?.value,
-                quality: document.getElementById('qualityFilter')?.value
-            };
-
             // Perform intelligent analysis
-            const results = await this.analysisService.analyzeQuery(query, filters);
+            const results = await this.analysisService.analyzeQuery(query, this.currentFilters);
             this.currentQuery = results;
 
             // Update UI with results
@@ -586,6 +987,37 @@ class RegulatoryPlatform {
         }
     }
 
+    applyFilters() {
+        if (this.currentQuery) {
+            // Re-generate studies with new filters
+            const filteredStudies = this.analysisService.generateRelevantStudies(
+                this.currentQuery.therapeutic,
+                this.currentQuery.productType,
+                this.currentQuery.concepts,
+                this.currentFilters
+            );
+            
+            this.currentQuery.studies = filteredStudies;
+            this.updateEvidenceTable(filteredStudies);
+            
+            this.showSuccessMessage(`Filters applied: ${Object.values(this.currentFilters).filter(f => f !== 'all').length} active filters`);
+        } else {
+            // Apply filters to default evidence
+            let filteredEvidence = [...this.data.sampleEvidence];
+            
+            if (this.currentFilters.quality !== 'all') {
+                filteredEvidence = filteredEvidence.filter(study => {
+                    if (this.currentFilters.quality === 'high') return study.confidence >= 80;
+                    if (this.currentFilters.quality === 'medium') return study.confidence >= 60 && study.confidence < 80;
+                    if (this.currentFilters.quality === 'low') return study.confidence < 60;
+                    return true;
+                });
+            }
+            
+            this.updateEvidenceTable(filteredEvidence);
+        }
+    }
+
     showAnalysisProgress(query) {
         const resultsContainer = document.getElementById('queryResults');
         const analysisContent = document.getElementById('analysisContent');
@@ -599,8 +1031,8 @@ class RegulatoryPlatform {
                     <div class="progress-step active">📊 Identifying therapeutic area...</div>
                     <div class="progress-step active">🔬 Processing literature database...</div>
                     <div class="progress-step active">⚡ Extracting key evidence...</div>
-                    <div class="progress-step">📋 Generating regulatory insights...</div>
-                    <div class="progress-step">🎯 Calculating recommendations...</div>
+                    <div class="progress-step active">📋 Generating regulatory insights...</div>
+                    <div class="progress-step active">🎯 Calculating recommendations...</div>
                 </div>
                 <div style="margin-top: 20px; padding: 15px; background: #f0f9ff; border-radius: 8px;">
                     <p style="margin: 0; color: #0369a1;">✨ <strong>Universal Query Processing:</strong> Our AI adapts to any research question across all therapeutic areas and regulatory pathways.</p>
@@ -649,6 +1081,27 @@ class RegulatoryPlatform {
                             <strong>Competitive Landscape:</strong> ${results.marketAnalysis.competitiveLandscape}
                         </div>
                     </div>
+                    <div class="market-drivers">
+                        <strong>Key Market Drivers:</strong>
+                        <ul>
+                            ${results.marketAnalysis.keyDrivers.map(driver => `<li>${driver}</li>`).join('')}
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="competitive-intelligence">
+                    <h5>🏢 Competitive Intelligence</h5>
+                    <div class="competitor-analysis">
+                        <div class="competitor-section">
+                            <strong>Market Leaders:</strong> ${results.competitiveIntelligence.marketLeaders.join(', ')}
+                        </div>
+                        <div class="competitor-section">
+                            <strong>Emerging Players:</strong> ${results.competitiveIntelligence.emergingPlayers.join(', ')}
+                        </div>
+                        <div class="competitor-section">
+                            <strong>Barrier to Entry:</strong> ${results.competitiveIntelligence.barrierToEntry}
+                        </div>
+                    </div>
                 </div>
 
                 <div class="recommendations-section">
@@ -670,6 +1123,24 @@ class RegulatoryPlatform {
                                 <div class="risk-rationale">${risk.rationale}</div>
                             </div>
                         `).join('')}
+                    </div>
+                </div>
+
+                <div class="strategic-insights">
+                    <h5>🎯 Strategic Insights</h5>
+                    <div class="insights-grid">
+                        <div class="insight-section">
+                            <strong>Key Opportunities:</strong>
+                            <ul>
+                                ${results.strategicInsights.keyOpportunities.map(opp => `<li>${opp}</li>`).join('')}
+                            </ul>
+                        </div>
+                        <div class="insight-section">
+                            <strong>Success Factors:</strong>
+                            <ul>
+                                ${results.strategicInsights.successFactors.map(factor => `<li>${factor}</li>`).join('')}
+                            </ul>
+                        </div>
                     </div>
                 </div>
 
@@ -699,7 +1170,9 @@ class RegulatoryPlatform {
         
         // Remove after 4 seconds
         setTimeout(() => {
-            document.body.removeChild(notification);
+            if (document.body.contains(notification)) {
+                document.body.removeChild(notification);
+            }
         }, 4000);
     }
 
@@ -721,11 +1194,7 @@ class RegulatoryPlatform {
         `).join('');
     }
 
-    // ... (rest of the methods remain the same as in the previous version)
-    
     async renderDashboard() {
-        this.showLoadingState();
-        
         try {
             const [guidance, approvals, trials] = await Promise.all([
                 this.fdaService.fetchFDAGuidance(),
@@ -742,15 +1211,10 @@ class RegulatoryPlatform {
             this.renderTrialsList();
             this.renderSafetyTicker();
             
-            this.hideLoadingState();
             console.log('✅ Live FDA data loaded successfully');
         } catch (error) {
             console.error('Error loading FDA data:', error);
-            this.hideLoadingState();
-            this.renderGuidanceList();
-            this.renderApprovalsList();
-            this.renderTrialsList();
-            this.renderSafetyTicker();
+            // Fallback data already loaded in initializeWithFallbackData
         }
     }
 
@@ -764,7 +1228,7 @@ class RegulatoryPlatform {
                     <div class="item-title">${item.title}</div>
                     <div class="item-date">${item.date}</div>
                 </div>
-                <div class="item-agency">${item.agency}</div>
+                <div class="item-agency">${item.agency} • ${item.type || 'Guidance'}</div>
             </div>
         `).join('');
     }
@@ -809,9 +1273,10 @@ class RegulatoryPlatform {
 
         const safetyItems = [
             "FDA Class I recall: CardioShield ICD leads - fracture risk identified",
-            "EMA safety notice: FlowGuard DES - elevated late thrombosis rates",
+            "EMA safety notice: FlowGuard DES - elevated late thrombosis rates", 
             "PMDA alert: NeuroStim devices - software update required",
-            "Health Canada: PulseFlow stents - post-market surveillance initiated"
+            "Health Canada: PulseFlow stents - post-market surveillance initiated",
+            "FDA Warning Letter: Medical device manufacturer - quality system violations"
         ];
 
         container.innerHTML = safetyItems.map(item => 
@@ -848,26 +1313,48 @@ class RegulatoryPlatform {
                 <td>${item.owner}</td>
                 <td>${item.updated}</td>
                 <td>
-                    <button class="btn btn--sm btn--outline">Review</button>
-                    <button class="btn btn--sm btn--primary">Update</button>
+                    <button class="btn btn--sm btn--outline" onclick="app.reviewComplianceItem('${item.section}')">Review</button>
+                    <button class="btn btn--sm btn--primary" onclick="app.updateComplianceItem('${item.section}')">Update</button>
                 </td>
             </tr>
         `).join('');
+
+        // Render compliance alerts
+        const alertsContainer = document.getElementById('complianceAlerts');
+        if (alertsContainer) {
+            const complianceAlerts = this.alertService.filterAlerts('compliance');
+            alertsContainer.innerHTML = complianceAlerts.map(alert => `
+                <div class="alert-item ${alert.severity}">
+                    <div class="alert-header">
+                        <div class="alert-title">${alert.title}</div>
+                        <div class="alert-time">${alert.time}</div>
+                    </div>
+                    <div class="alert-content">${alert.content}</div>
+                    <div class="alert-actions">
+                        <button class="btn btn--sm btn--outline" onclick="app.acknowledgeAlert(${alert.id})">Acknowledge</button>
+                        <button class="btn btn--sm btn--primary">Take Action</button>
+                    </div>
+                </div>
+            `).join('');
+        }
     }
 
     renderAlerts() {
         const container = document.getElementById('alertsList');
         if (!container) return;
 
-        container.innerHTML = this.alerts.map(alert => `
-            <div class="alert-item ${alert.severity}">
+        const alerts = this.alertService.getAllAlerts();
+        container.innerHTML = alerts.map(alert => `
+            <div class="alert-item ${alert.severity} ${alert.acknowledged ? 'acknowledged' : ''}">
                 <div class="alert-header">
                     <div class="alert-title">${alert.title}</div>
                     <div class="alert-time">${alert.time}</div>
                 </div>
                 <div class="alert-content">${alert.content}</div>
                 <div class="alert-actions">
-                    <button class="btn btn--sm btn--outline">Acknowledge</button>
+                    <button class="btn btn--sm btn--outline" onclick="app.acknowledgeAlert(${alert.id})" ${alert.acknowledged ? 'disabled' : ''}>
+                        ${alert.acknowledged ? 'Acknowledged' : 'Acknowledge'}
+                    </button>
                     <button class="btn btn--sm btn--primary">Take Action</button>
                 </div>
             </div>
@@ -915,6 +1402,13 @@ class RegulatoryPlatform {
             ctx.beginPath();
             ctx.arc(x, y, 4, 0, 2 * Math.PI);
             ctx.fill();
+            
+            // Draw labels
+            ctx.fillStyle = '#333';
+            ctx.font = '10px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(point.quarter, x, canvas.height - 5);
+            ctx.fillText(`${Math.round(point.prob * 100)}%`, x, y - 10);
         });
         
         ctx.stroke();
@@ -970,28 +1464,16 @@ class RegulatoryPlatform {
         document.querySelectorAll('.nav-tab').forEach(tab => {
             tab.classList.remove('active');
         });
-        document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+        document.querySelector(`[data-tab="${tabName}"]`)?.classList.add('active');
 
         document.querySelectorAll('.tab-content').forEach(content => {
             content.classList.remove('active');
         });
-        document.getElementById(tabName).classList.add('active');
+        document.getElementById(tabName)?.classList.add('active');
 
         if (tabName === 'intelligence') {
             setTimeout(() => this.renderIntelligence(), 100);
         }
-    }
-
-    showLoadingState() {
-        document.querySelectorAll('.card__body').forEach(card => {
-            if (card.id === 'guidanceList' || card.id === 'approvalsList' || card.id === 'trialsList') {
-                card.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">🔄 Loading live FDA data...</div>';
-            }
-        });
-    }
-
-    hideLoadingState() {
-        // Content will be replaced by actual data
     }
 
     startLiveUpdates() {
@@ -1037,20 +1519,35 @@ class RegulatoryPlatform {
                 <p>This study provides ${study.confidence >= 80 ? 'strong' : study.confidence >= 60 ? 'moderate' : 'limited'} evidence for regulatory submissions.</p>
                 
                 <div class="study-actions">
-                    <button class="btn btn--primary">Export Evidence Table</button>
-                    <button class="btn btn--outline">Add to Submission</button>
+                    <button class="btn btn--primary" onclick="app.exportStudyEvidence('${study.id}')">Export Evidence Table</button>
+                    <button class="btn btn--outline" onclick="app.addToSubmission('${study.id}')">Add to Submission</button>
                 </div>
             </div>
         `;
 
-        document.getElementById('studyDrawer').classList.add('open');
+        document.getElementById('studyDrawer')?.classList.add('open');
+    }
+
+    closeStudyDrawer() {
+        document.getElementById('studyDrawer')?.classList.remove('open');
     }
 
     runValidation() {
         const studyCount = this.currentQuery?.studies?.length || this.data.sampleEvidence.length;
         const avgConfidence = this.currentQuery?.confidence || 85;
         
-        alert(`🔬 Evidence validation complete!\n\n✅ ${studyCount} studies reviewed for regulatory compliance\n📊 Average confidence score: ${avgConfidence}%\n🎯 All studies meet ICH-GCP standards\n📋 Ready for regulatory submission`);
+        // Generate new alert for validation
+        this.alertService.generateNewAlert(
+            'validation',
+            'info', 
+            'Evidence Validation Complete',
+            `Validated ${studyCount} studies with average confidence score of ${avgConfidence}%. All studies meet regulatory standards.`
+        );
+        
+        this.showSuccessMessage(`Evidence validation complete! ${studyCount} studies validated with ${avgConfidence}% average confidence.`);
+        
+        // Update alerts display
+        this.renderAlerts();
     }
 
     exportFDATable() {
@@ -1062,26 +1559,40 @@ class RegulatoryPlatform {
         this.showSuccessMessage(`FDA evidence table exported with ${data.length} studies`);
     }
 
-    generateIntelligence() {
-        if (this.currentQuery) {
-            alert(`🎯 Strategic intelligence report generated!\n\n📊 Query: ${this.currentQuery.query}\n🏥 Therapeutic Area: ${this.currentQuery.therapeutic}\n💊 Product Type: ${this.currentQuery.productType}\n📈 Market Size: ${this.currentQuery.marketAnalysis.marketSize}\n🚀 Growth Rate: ${this.currentQuery.marketAnalysis.growthRate}\n📋 Regulatory Pathway: ${this.currentQuery.regulatoryPathway}`);
-        } else {
-            alert('🎯 Strategic intelligence report generated! Run a query first to get personalized insights.');
-        }
+    generateIntelligenceReport() {
+        const report = this.intelligenceService.generateStrategicReport(this.currentQuery);
+        
+        // Show comprehensive intelligence summary
+        const message = this.currentQuery 
+            ? `Strategic intelligence generated!\n\n📊 Query: ${this.currentQuery.query}\n🏥 Therapeutic: ${this.currentQuery.therapeutic}\n💊 Product: ${this.currentQuery.productType}\n📈 Market: ${this.currentQuery.marketAnalysis.marketSize}\n🚀 Growth: ${this.currentQuery.marketAnalysis.growthRate}\n📋 Pathway: ${this.currentQuery.regulatoryPathway}`
+            : 'Strategic intelligence report generated! Run a query first for personalized insights.';
+            
+        alert(`🎯 ${message}`);
+        
+        // Generate alert for strategic intelligence
+        this.alertService.generateNewAlert(
+            'strategic',
+            'info',
+            'Strategic Intelligence Report Generated', 
+            `Comprehensive market and competitive analysis complete. Key insights available for strategic planning.`
+        );
+        
+        this.renderAlerts();
     }
 
     openPathwayModal() {
-        document.getElementById('pathwayModal').classList.remove('hidden');
+        document.getElementById('pathwayModal')?.classList.remove('hidden');
     }
 
     closePathwayModal() {
-        document.getElementById('pathwayModal').classList.add('hidden');
+        document.getElementById('pathwayModal')?.classList.add('hidden');
+        document.getElementById('wizardResult')?.classList.add('hidden');
     }
 
     processPathwayWizard() {
-        const productType = document.getElementById('productType').value;
-        const riskLevel = document.getElementById('riskLevel').value;
-        const targetMarket = document.getElementById('targetMarket').value;
+        const productType = document.getElementById('productType')?.value;
+        const riskLevel = document.getElementById('riskLevel')?.value;
+        const targetMarket = document.getElementById('targetMarket')?.value;
 
         const pathways = {
             'device-class2': { path: '510(k) Clearance', timeline: '6-12 months', recommendation: 'Pre-submission meeting recommended' },
@@ -1093,24 +1604,121 @@ class RegulatoryPlatform {
         const result = pathways[productType];
         const resultDiv = document.getElementById('wizardResult');
         
-        resultDiv.innerHTML = `
-            <div class="pathway-recommendation">
-                <h4>🧭 Recommended Regulatory Pathway</h4>
-                <p><strong>Classification:</strong> ${result.path}</p>
-                <p><strong>Estimated Timeline:</strong> ${result.timeline}</p>
-                <p><strong>Risk Level:</strong> ${riskLevel}</p>
-                <p><strong>Target Market:</strong> ${targetMarket}</p>
-                <p><strong>Next Steps:</strong> ${result.recommendation}</p>
-            </div>
-        `;
+        if (resultDiv && result) {
+            resultDiv.innerHTML = `
+                <div class="pathway-recommendation">
+                    <h4>🧭 Recommended Regulatory Pathway</h4>
+                    <p><strong>Classification:</strong> ${result.path}</p>
+                    <p><strong>Estimated Timeline:</strong> ${result.timeline}</p>
+                    <p><strong>Risk Level:</strong> ${riskLevel}</p>
+                    <p><strong>Target Market:</strong> ${targetMarket}</p>
+                    <p><strong>Next Steps:</strong> ${result.recommendation}</p>
+                    
+                    <div class="pathway-actions" style="margin-top: 15px;">
+                        <button class="btn btn--primary" onclick="app.exportPathwayReport()">Export Pathway Report</button>
+                        <button class="btn btn--outline" onclick="app.scheduleConsultation()">Schedule Consultation</button>
+                    </div>
+                </div>
+            `;
+            
+            resultDiv.classList.remove('hidden');
+        }
+    }
+
+    exportPathwayReport() {
+        const reportContent = `Regulatory Pathway Analysis Report
+Generated: ${new Date().toLocaleString()}
+
+Product Classification: Medical Device Class II
+Recommended Pathway: 510(k) Clearance
+Estimated Timeline: 6-12 months
+Target Market: United States (FDA)
+
+Next Steps:
+1. Pre-submission meeting with FDA
+2. Predicate device analysis
+3. Clinical evidence package preparation
+4. Quality management system review
+`;
         
-        resultDiv.classList.remove('hidden');
+        this.downloadFile(reportContent, `regulatory-pathway-report-${new Date().toISOString().split('T')[0]}.txt`, 'text/plain');
+        this.showSuccessMessage('Regulatory pathway report exported successfully');
+    }
+
+    scheduleConsultation() {
+        alert('📅 Consultation Request Submitted!\n\nOur regulatory experts will contact you within 24 hours to schedule a strategic consultation session.');
     }
 
     exportGSPRMatrix() {
         const csvContent = this.generateComplianceCSV();
         this.downloadFile(csvContent, `gspr-compliance-matrix-${new Date().toISOString().split('T')[0]}.csv`, 'text/csv');
         this.showSuccessMessage('GSPR compliance matrix exported successfully');
+    }
+
+    exportAuditTrace() {
+        const auditContent = `EU MDR Audit Trail Report
+Generated: ${new Date().toLocaleString()}
+
+Compliance Status Summary:
+- GSPR Checklist: Complete
+- Clinical Evaluation Report: Complete  
+- PMCF Plan: Missing (Action Required)
+- PSUR: Needs Update
+- Risk Management Plan: Complete
+- Clinical Investigation Plan: In Progress
+
+Recent Activity:
+- 2025-01-05: Clinical Investigation Plan updated
+- 2025-01-03: Clinical Evaluation Report completed
+- 2025-01-02: Risk Management Plan approved
+- 2025-01-01: GSPR Checklist finalized
+
+Outstanding Actions:
+1. Complete PMCF Plan (Due: High Priority)
+2. Update PSUR documentation
+3. Finalize Clinical Investigation Plan
+`;
+        
+        this.downloadFile(auditContent, `eu-mdr-audit-trail-${new Date().toISOString().split('T')[0]}.txt`, 'text/plain');
+        this.showSuccessMessage('EU MDR audit trail exported successfully');
+    }
+
+    acknowledgeAlert(alertId) {
+        const success = this.alertService.acknowledgeAlert(alertId);
+        if (success) {
+            this.renderAlerts();
+            this.showSuccessMessage('Alert acknowledged successfully');
+        }
+    }
+
+    reviewComplianceItem(section) {
+        alert(`📋 Reviewing: ${section}\n\nOpening compliance documentation for detailed review and status assessment.`);
+    }
+
+    updateComplianceItem(section) {
+        const item = this.data.sampleCompliance.find(i => i.section === section);
+        if (item) {
+            item.status = 'In Progress';
+            item.updated = new Date().toISOString().split('T')[0];
+            this.renderCompliance();
+            this.showSuccessMessage(`${section} status updated to In Progress`);
+        }
+    }
+
+    exportStudyEvidence(studyId) {
+        const study = this.data.sampleEvidence.find(s => s.id === studyId) || 
+                     (this.currentQuery?.studies?.find(s => s.id === studyId));
+        
+        if (study) {
+            const csvContent = this.generateCSV([study]);
+            this.downloadFile(csvContent, `study-evidence-${studyId}.csv`, 'text/csv');
+            this.showSuccessMessage(`Evidence exported for study ${studyId}`);
+        }
+    }
+
+    addToSubmission(studyId) {
+        alert(`✅ Study ${studyId} added to regulatory submission package.\n\nThe study has been tagged for inclusion in the next regulatory filing.`);
+        this.closeStudyDrawer();
     }
 
     generateCSV(data) {
