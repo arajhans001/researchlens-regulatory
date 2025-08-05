@@ -3,60 +3,49 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ResearchLens Regulatory Sentinel</title>
+    <title>ResearchLens Regulatory - AI-Powered Regulatory Intelligence</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://unpkg.com/html-docx-js@0.6.1/dist/html-docx.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
 </head>
 <body>
-    <!-- Header -->
-    <header class="header">
+    <div class="header">
         <div class="header-content">
             <div class="logo">
-                <h1>ResearchLens Regulatory Sentinel</h1>
+                <h1>🔬 ResearchLens Regulatory</h1>
             </div>
             <nav class="nav-tabs">
                 <button class="nav-tab active" data-tab="dashboard">Dashboard</button>
-                <button class="nav-tab" data-tab="validation">Validation</button>
-                <button class="nav-tab" data-tab="compliance">Compliance Docs</button>
-                <button class="nav-tab" data-tab="intelligence">Intelligence</button>
+                <button class="nav-tab" data-tab="validation">Evidence Validation</button>
+                <button class="nav-tab" data-tab="compliance">EU MDR Compliance</button>
+                <button class="nav-tab" data-tab="intelligence">Strategic Intelligence</button>
                 <button class="nav-tab" data-tab="alerts">Alerts</button>
             </nav>
         </div>
-    </header>
+    </div>
 
     <div class="main-layout">
-        <!-- Sidebar -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <h3>Filters</h3>
-                <button class="sidebar-toggle" id="sidebarToggle">
-                    <span></span>
+                <h3>Query & Filters</h3>
+                <button class="sidebar-toggle" id="sidebarToggle">☰</button>
+            </div>
+            
+            <div class="query-section">
+                <div class="form-group">
+                    <label class="form-label">Research Query</label>
+                    <textarea 
+                        class="form-control" 
+                        id="researchQuery" 
+                        rows="3" 
+                        placeholder="e.g., CAR-T cell therapy cardiac toxicity, drug-eluting stent efficacy, TAVR outcomes elderly patients"
+                    ></textarea>
+                </div>
+                <button class="btn btn--primary btn--full-width" id="executeQuery">
+                    🔍 Analyze Literature
                 </button>
             </div>
+
             <div class="filter-section">
-                <div class="form-group">
-                    <label class="form-label">Agency</label>
-                    <select class="form-control" id="agencyFilter">
-                        <option value="all">All Agencies</option>
-                        <option value="FDA">FDA</option>
-                        <option value="EMA">EMA</option>
-                        <option value="PMDA">PMDA</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Region</label>
-                    <select class="form-control" id="regionFilter">
-                        <option value="all">All Regions</option>
-                        <option value="US">United States</option>
-                        <option value="EU">European Union</option>
-                        <option value="APAC">Asia Pacific</option>
-                    </select>
-                </div>
                 <div class="form-group">
                     <label class="form-label">Therapeutic Area</label>
                     <select class="form-control" id="therapeuticFilter">
@@ -64,73 +53,110 @@
                         <option value="cardiovascular">Cardiovascular</option>
                         <option value="oncology">Oncology</option>
                         <option value="neurology">Neurology</option>
+                        <option value="orthopedic">Orthopedic</option>
+                        <option value="diabetes">Diabetes</option>
                     </select>
                 </div>
+                
                 <div class="form-group">
-                    <label class="form-label">Type</label>
-                    <select class="form-control" id="typeFilter">
-                        <option value="all">All Types</option>
-                        <option value="device">Medical Device</option>
-                        <option value="drug">Pharmaceutical</option>
-                        <option value="combination">Combination Product</option>
+                    <label class="form-label">Study Phase</label>
+                    <select class="form-control" id="phaseFilter">
+                        <option value="all">All Phases</option>
+                        <option value="phase1">Phase I</option>
+                        <option value="phase2">Phase II</option>
+                        <option value="phase3">Phase III</option>
+                        <option value="registry">Registry</option>
+                        <option value="meta">Meta-analysis</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Evidence Quality</label>
+                    <select class="form-control" id="qualityFilter">
+                        <option value="all">All Quality</option>
+                        <option value="high">High (≥80%)</option>
+                        <option value="medium">Medium (60-79%)</option>
+                        <option value="low">Low (<60%)</option>
                     </select>
                 </div>
             </div>
         </aside>
 
-        <!-- Main Content -->
         <main class="main-content">
             <!-- Dashboard Tab -->
-            <div class="tab-content active" id="dashboard">
+            <div id="dashboard" class="tab-content active">
+                <div class="section-header">
+                    <h2>Regulatory Intelligence Dashboard</h2>
+                    <div class="live-controls">
+                        <span class="live-indicator" style="color: #008c8a; font-weight: 500;">⚡ Live Data</span>
+                        <button class="btn btn--outline btn--sm" onclick="app.renderDashboard()">🔄 Refresh</button>
+                    </div>
+                </div>
+
                 <div class="live-feed-grid">
                     <div class="card">
                         <div class="card__header">
-                            <h3>Guidance Updates</h3>
-                            <span class="status status--info">Live</span>
+                            <h3>📋 FDA Guidance Updates</h3>
+                            <span class="status status--success">Live</span>
                         </div>
-                        <div class="card__body">
-                            <div class="guidance-list" id="guidanceList"></div>
+                        <div class="card__body" id="guidanceList">
+                            <div style="text-align: center; padding: 20px;">🔄 Loading live FDA data...</div>
                         </div>
                     </div>
 
                     <div class="card">
                         <div class="card__header">
-                            <h3>Approvals & Filings</h3>
+                            <h3>✅ Approvals & Filings</h3>
                             <span class="status status--success">Active</span>
                         </div>
-                        <div class="card__body">
-                            <div class="approvals-list" id="approvalsList"></div>
+                        <div class="card__body" id="approvalsList">
+                            <div style="text-align: center; padding: 20px;">🔄 Loading...</div>
                         </div>
                     </div>
 
                     <div class="card">
                         <div class="card__header">
-                            <h3>Clinical Trial Milestones</h3>
-                            <span class="status status--warning">Monitoring</span>
+                            <h3>🧪 Clinical Trial Milestones</h3>
+                            <span class="status status--info">Monitoring</span>
                         </div>
-                        <div class="card__body">
-                            <div class="trials-list" id="trialsList"></div>
+                        <div class="card__body" id="trialsList">
+                            <div style="text-align: center; padding: 20px;">🔄 Loading...</div>
                         </div>
                     </div>
                 </div>
 
                 <div class="safety-ticker">
-                    <div class="ticker-label">Safety Signals:</div>
-                    <div class="ticker-content" id="safetyTicker"></div>
+                    <div class="ticker-label">🚨 Safety Signals:</div>
+                    <div class="ticker-content" id="safetyTicker">
+                        <div class="ticker-item">Loading live safety data...</div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Validation Tab -->
-            <div class="tab-content" id="validation">
+            <!-- Evidence Validation Tab -->
+            <div id="validation" class="tab-content">
                 <div class="section-header">
-                    <h2>Evidence Validation</h2>
+                    <h2>Evidence Validation Engine</h2>
                     <div class="search-controls">
-                        <input type="text" class="form-control" placeholder="Search studies..." id="studySearch">
-                        <button class="btn btn--primary">Refresh Data</button>
+                        <button class="btn btn--primary" id="validateEvidence">🔬 Run Validation</button>
+                        <button class="btn btn--outline" id="exportEvidence">📄 Export FDA Table</button>
                     </div>
                 </div>
+
+                <div class="query-results" id="queryResults" style="display: none;">
+                    <div class="card">
+                        <div class="card__header">
+                            <h3>📊 Query Analysis Results</h3>
+                            <span class="status status--success">Validated</span>
+                        </div>
+                        <div class="card__body" id="analysisContent">
+                            <!-- Dynamic content will be inserted here -->
+                        </div>
+                    </div>
+                </div>
+
                 <div class="evidence-table-wrapper">
-                    <table class="evidence-table" id="evidenceTable">
+                    <table class="evidence-table">
                         <thead>
                             <tr>
                                 <th>Study ID</th>
@@ -143,23 +169,25 @@
                                 <th>Confidence Score</th>
                             </tr>
                         </thead>
-                        <tbody id="evidenceTableBody"></tbody>
+                        <tbody id="evidenceTableBody">
+                            <!-- Dynamic content will be inserted here -->
+                        </tbody>
                     </table>
                 </div>
             </div>
 
-            <!-- Compliance Docs Tab -->
-            <div class="tab-content" id="compliance">
+            <!-- EU MDR Compliance Tab -->
+            <div id="compliance" class="tab-content">
                 <div class="section-header">
-                    <h2>EU MDR Progress Tracker</h2>
+                    <h2>EU MDR Compliance Tracker</h2>
                     <div class="export-controls">
-                        <button class="btn btn--primary" id="exportGSPR">Generate GSPR Evidence Matrix (XLSX)</button>
-                        <button class="btn btn--secondary" id="exportCFR">Create FDA 21-CFR Evidence Table (DOCX)</button>
-                        <button class="btn btn--outline" id="exportAudit">Compile Audit Trace (ZIP)</button>
+                        <button class="btn btn--primary" id="exportGSPR">📋 Export GSPR Matrix</button>
+                        <button class="btn btn--outline" id="exportAudit">📄 Audit Trail</button>
                     </div>
                 </div>
+
                 <div class="compliance-table-wrapper">
-                    <table class="compliance-table" id="complianceTable">
+                    <table class="compliance-table">
                         <thead>
                             <tr>
                                 <th>Section</th>
@@ -169,70 +197,82 @@
                                 <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="complianceTableBody"></tbody>
+                        <tbody id="complianceTableBody">
+                            <!-- Dynamic content will be inserted here -->
+                        </tbody>
                     </table>
+                </div>
+
+                <div id="complianceAlerts" class="alerts-container">
+                    <!-- Dynamic alerts will be inserted here -->
                 </div>
             </div>
 
-            <!-- Intelligence Tab -->
-            <div class="tab-content" id="intelligence">
+            <!-- Strategic Intelligence Tab -->
+            <div id="intelligence" class="tab-content">
+                <div class="section-header">
+                    <h2>Strategic Intelligence</h2>
+                    <div class="alert-filters">
+                        <button class="btn btn--primary" id="generateIntelligence">🎯 Generate Report</button>
+                        <button class="btn btn--outline" id="pathwayWizard">🧭 Pathway Wizard</button>
+                    </div>
+                </div>
+
                 <div class="intelligence-grid">
                     <div class="card">
                         <div class="card__header">
-                            <h3>Approval Timeline Forecaster</h3>
+                            <h3>📈 Approval Timeline Forecaster</h3>
                         </div>
                         <div class="card__body">
-                            <div class="chart-container" style="position: relative; height: 300px;">
-                                <canvas id="forecastChart"></canvas>
+                            <div class="chart-container" id="timelineChart">
+                                <canvas id="approvalChart" width="400" height="200"></canvas>
                             </div>
                         </div>
                     </div>
 
                     <div class="card">
                         <div class="card__header">
-                            <h3>Risk Factor Heatmap</h3>
+                            <h3>🎯 Risk Factor Heatmap</h3>
                         </div>
                         <div class="card__body">
-                            <div class="chart-container" style="position: relative; height: 300px;">
-                                <canvas id="riskChart"></canvas>
+                            <div class="chart-container" id="riskChart">
+                                <canvas id="heatmapChart" width="400" height="200"></canvas>
                             </div>
                         </div>
                     </div>
 
                     <div class="card pathway-card">
                         <div class="card__header">
-                            <h3>Pathway Recommender</h3>
+                            <h3>🧭 Regulatory Pathway Recommender</h3>
                         </div>
                         <div class="card__body">
                             <p>Get regulatory pathway recommendations based on your device/drug attributes.</p>
-                            <button class="btn btn--primary" id="pathwayWizard">Launch Pathway Wizard</button>
-                            <div class="pathway-result" id="pathwayResult"></div>
+                            <div id="pathwayResult" class="pathway-result" style="display: none;">
+                                <!-- Dynamic recommendations will appear here -->
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- Alerts Tab -->
-            <div class="tab-content" id="alerts">
+            <div id="alerts" class="tab-content">
                 <div class="section-header">
-                    <h2>Notification Center</h2>
+                    <h2>Regulatory Alerts & Notifications</h2>
                     <div class="alert-filters">
-                        <select class="form-control" id="severityFilter">
-                            <option value="all">All Severities</option>
-                            <option value="high">High</option>
-                            <option value="medium">Medium</option>
-                            <option value="low">Low</option>
+                        <select class="form-control" style="width: auto;">
+                            <option>All Alerts</option>
+                            <option>High Priority</option>
+                            <option>Safety Signals</option>
+                            <option>Guidance Updates</option>
                         </select>
-                        <select class="form-control" id="alertTypeFilter">
-                            <option value="all">All Types</option>
-                            <option value="safety">Safety Signal</option>
-                            <option value="guidance">Guidance Update</option>
-                            <option value="validation">Validation Issue</option>
-                            <option value="compliance">Compliance</option>
-                        </select>
+                        <button class="btn btn--outline">Mark All Read</button>
                     </div>
                 </div>
-                <div class="alerts-container" id="alertsContainer"></div>
+
+                <div id="alertsList" class="alerts-container">
+                    <!-- Dynamic alerts will be inserted here -->
+                </div>
             </div>
         </main>
     </div>
@@ -243,7 +283,9 @@
             <h3>Study Details</h3>
             <button class="drawer-close" id="closeDrawer">&times;</button>
         </div>
-        <div class="drawer-content" id="drawerContent"></div>
+        <div class="drawer-content" id="drawerContent">
+            <!-- Dynamic study details will be inserted here -->
+        </div>
     </div>
 
     <!-- Pathway Wizard Modal -->
@@ -254,30 +296,35 @@
                 <button class="modal-close" id="closeModal">&times;</button>
             </div>
             <div class="modal-body">
-                <div class="wizard-step" id="wizardStep1">
-                    <h4>Device Classification</h4>
-                    <div class="form-group">
-                        <label class="form-label">Device Type</label>
-                        <select class="form-control" id="deviceType">
-                            <option value="">Select device type</option>
-                            <option value="active-implantable">Active Implantable</option>
-                            <option value="non-active-implantable">Non-Active Implantable</option>
-                            <option value="active-therapeutic">Active Therapeutic</option>
-                            <option value="non-active">Non-Active</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Risk Level</label>
-                        <select class="form-control" id="riskLevel">
-                            <option value="">Select risk level</option>
-                            <option value="low">Low Risk (Class I)</option>
-                            <option value="medium">Medium Risk (Class IIa/IIb)</option>
-                            <option value="high">High Risk (Class III)</option>
-                        </select>
-                    </div>
-                    <button class="btn btn--primary" id="wizardNext">Get Recommendation</button>
+                <div class="wizard-step">
+                    <label class="form-label">Device/Drug Type</label>
+                    <select class="form-control" id="productType">
+                        <option value="device-class2">Class II Medical Device</option>
+                        <option value="device-class3">Class III Medical Device</option>
+                        <option value="drug-small">Small Molecule Drug</option>
+                        <option value="biologic">Biologic/Biosimilar</option>
+                    </select>
                 </div>
-                <div class="wizard-result hidden" id="wizardResult"></div>
+                <div class="wizard-step">
+                    <label class="form-label">Risk Level</label>
+                    <select class="form-control" id="riskLevel">
+                        <option value="low">Low Risk</option>
+                        <option value="moderate">Moderate Risk</option>
+                        <option value="high">High Risk</option>
+                    </select>
+                </div>
+                <div class="wizard-step">
+                    <label class="form-label">Target Market</label>
+                    <select class="form-control" id="targetMarket">
+                        <option value="us">United States (FDA)</option>
+                        <option value="eu">European Union (EMA)</option>
+                        <option value="global">Global (FDA + EMA)</option>
+                    </select>
+                </div>
+                <button class="btn btn--primary" id="wizardNext">Generate Pathway</button>
+                <div class="wizard-result hidden" id="wizardResult">
+                    <!-- Dynamic pathway results will appear here -->
+                </div>
             </div>
         </div>
     </div>
