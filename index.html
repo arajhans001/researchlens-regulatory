@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ResearchLens Regulatory Sentinel</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://unpkg.com/html-docx-js@0.6.1/dist/html-docx.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <h1>ResearchLens Regulatory Sentinel</h1>
+            </div>
+            <nav class="nav-tabs">
+                <button class="nav-tab active" data-tab="dashboard">Dashboard</button>
+                <button class="nav-tab" data-tab="validation">Validation</button>
+                <button class="nav-tab" data-tab="compliance">Compliance Docs</button>
+                <button class="nav-tab" data-tab="intelligence">Intelligence</button>
+                <button class="nav-tab" data-tab="alerts">Alerts</button>
+            </nav>
+        </div>
+    </header>
+
+    <div class="main-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h3>Filters</h3>
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <span></span>
+                </button>
+            </div>
+            <div class="filter-section">
+                <div class="form-group">
+                    <label class="form-label">Agency</label>
+                    <select class="form-control" id="agencyFilter">
+                        <option value="all">All Agencies</option>
+                        <option value="FDA">FDA</option>
+                        <option value="EMA">EMA</option>
+                        <option value="PMDA">PMDA</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Region</label>
+                    <select class="form-control" id="regionFilter">
+                        <option value="all">All Regions</option>
+                        <option value="US">United States</option>
+                        <option value="EU">European Union</option>
+                        <option value="APAC">Asia Pacific</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Therapeutic Area</label>
+                    <select class="form-control" id="therapeuticFilter">
+                        <option value="all">All Areas</option>
+                        <option value="cardiovascular">Cardiovascular</option>
+                        <option value="oncology">Oncology</option>
+                        <option value="neurology">Neurology</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Type</label>
+                    <select class="form-control" id="typeFilter">
+                        <option value="all">All Types</option>
+                        <option value="device">Medical Device</option>
+                        <option value="drug">Pharmaceutical</option>
+                        <option value="combination">Combination Product</option>
+                    </select>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Dashboard Tab -->
+            <div class="tab-content active" id="dashboard">
+                <div class="live-feed-grid">
+                    <div class="card">
+                        <div class="card__header">
+                            <h3>Guidance Updates</h3>
+                            <span class="status status--info">Live</span>
+                        </div>
+                        <div class="card__body">
+                            <div class="guidance-list" id="guidanceList"></div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card__header">
+                            <h3>Approvals & Filings</h3>
+                            <span class="status status--success">Active</span>
+                        </div>
+                        <div class="card__body">
+                            <div class="approvals-list" id="approvalsList"></div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card__header">
+                            <h3>Clinical Trial Milestones</h3>
+                            <span class="status status--warning">Monitoring</span>
+                        </div>
+                        <div class="card__body">
+                            <div class="trials-list" id="trialsList"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="safety-ticker">
+                    <div class="ticker-label">Safety Signals:</div>
+                    <div class="ticker-content" id="safetyTicker"></div>
+                </div>
+            </div>
+
+            <!-- Validation Tab -->
+            <div class="tab-content" id="validation">
+                <div class="section-header">
+                    <h2>Evidence Validation</h2>
+                    <div class="search-controls">
+                        <input type="text" class="form-control" placeholder="Search studies..." id="studySearch">
+                        <button class="btn btn--primary">Refresh Data</button>
+                    </div>
+                </div>
+                <div class="evidence-table-wrapper">
+                    <table class="evidence-table" id="evidenceTable">
+                        <thead>
+                            <tr>
+                                <th>Study ID</th>
+                                <th>Title</th>
+                                <th>Phase</th>
+                                <th>Design</th>
+                                <th>Sample Size</th>
+                                <th>Endpoint Success</th>
+                                <th>Compliance Flags</th>
+                                <th>Confidence Score</th>
+                            </tr>
+                        </thead>
+                        <tbody id="evidenceTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Compliance Docs Tab -->
+            <div class="tab-content" id="compliance">
+                <div class="section-header">
+                    <h2>EU MDR Progress Tracker</h2>
+                    <div class="export-controls">
+                        <button class="btn btn--primary" id="exportGSPR">Generate GSPR Evidence Matrix (XLSX)</button>
+                        <button class="btn btn--secondary" id="exportCFR">Create FDA 21-CFR Evidence Table (DOCX)</button>
+                        <button class="btn btn--outline" id="exportAudit">Compile Audit Trace (ZIP)</button>
+                    </div>
+                </div>
+                <div class="compliance-table-wrapper">
+                    <table class="compliance-table" id="complianceTable">
+                        <thead>
+                            <tr>
+                                <th>Section</th>
+                                <th>Status</th>
+                                <th>Owner</th>
+                                <th>Last Updated</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="complianceTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Intelligence Tab -->
+            <div class="tab-content" id="intelligence">
+                <div class="intelligence-grid">
+                    <div class="card">
+                        <div class="card__header">
+                            <h3>Approval Timeline Forecaster</h3>
+                        </div>
+                        <div class="card__body">
+                            <div class="chart-container" style="position: relative; height: 300px;">
+                                <canvas id="forecastChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card__header">
+                            <h3>Risk Factor Heatmap</h3>
+                        </div>
+                        <div class="card__body">
+                            <div class="chart-container" style="position: relative; height: 300px;">
+                                <canvas id="riskChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card pathway-card">
+                        <div class="card__header">
+                            <h3>Pathway Recommender</h3>
+                        </div>
+                        <div class="card__body">
+                            <p>Get regulatory pathway recommendations based on your device/drug attributes.</p>
+                            <button class="btn btn--primary" id="pathwayWizard">Launch Pathway Wizard</button>
+                            <div class="pathway-result" id="pathwayResult"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alerts Tab -->
+            <div class="tab-content" id="alerts">
+                <div class="section-header">
+                    <h2>Notification Center</h2>
+                    <div class="alert-filters">
+                        <select class="form-control" id="severityFilter">
+                            <option value="all">All Severities</option>
+                            <option value="high">High</option>
+                            <option value="medium">Medium</option>
+                            <option value="low">Low</option>
+                        </select>
+                        <select class="form-control" id="alertTypeFilter">
+                            <option value="all">All Types</option>
+                            <option value="safety">Safety Signal</option>
+                            <option value="guidance">Guidance Update</option>
+                            <option value="validation">Validation Issue</option>
+                            <option value="compliance">Compliance</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="alerts-container" id="alertsContainer"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Study Detail Drawer -->
+    <div class="drawer" id="studyDrawer">
+        <div class="drawer-header">
+            <h3>Study Details</h3>
+            <button class="drawer-close" id="closeDrawer">&times;</button>
+        </div>
+        <div class="drawer-content" id="drawerContent"></div>
+    </div>
+
+    <!-- Pathway Wizard Modal -->
+    <div class="modal hidden" id="pathwayModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Regulatory Pathway Wizard</h3>
+                <button class="modal-close" id="closeModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="wizard-step" id="wizardStep1">
+                    <h4>Device Classification</h4>
+                    <div class="form-group">
+                        <label class="form-label">Device Type</label>
+                        <select class="form-control" id="deviceType">
+                            <option value="">Select device type</option>
+                            <option value="active-implantable">Active Implantable</option>
+                            <option value="non-active-implantable">Non-Active Implantable</option>
+                            <option value="active-therapeutic">Active Therapeutic</option>
+                            <option value="non-active">Non-Active</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Risk Level</label>
+                        <select class="form-control" id="riskLevel">
+                            <option value="">Select risk level</option>
+                            <option value="low">Low Risk (Class I)</option>
+                            <option value="medium">Medium Risk (Class IIa/IIb)</option>
+                            <option value="high">High Risk (Class III)</option>
+                        </select>
+                    </div>
+                    <button class="btn btn--primary" id="wizardNext">Get Recommendation</button>
+                </div>
+                <div class="wizard-result hidden" id="wizardResult"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
